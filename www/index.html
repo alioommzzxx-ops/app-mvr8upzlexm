@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>كليب</title>
+<style>
+  :root { --bg:#000; --fg:#fff; --mut:#9a9a9f; --card:#1c1c1e; --accent:#fe2c55; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+    font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+  input,textarea { font:inherit; color:var(--fg); background:#2a2a2d; border:1px solid #3a3a3e; border-radius:10px; padding:11px 12px; width:100%; }
+  input:focus,textarea:focus { outline:2px solid var(--accent); border-color:transparent; }
+  .btn { background:var(--accent); border:0; border-radius:10px; padding:11px 18px; font-weight:600; }
+  .btn.ghost { background:transparent; border:1px solid #444; }
+  .btn.gray { background:#2f2f33; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .muted { color:var(--mut); }
+  .center { display:flex; align-items:center; justify-content:center; text-align:center; }
+
+  #app { height:100dvh; max-width:520px; margin:0 auto; position:relative; display:flex; flex-direction:column; background:#000; }
+  #main { flex:1; min-height:0; position:relative; overflow:hidden; }
+  nav { display:flex; border-top:1px solid #222; background:#000; padding-bottom:env(safe-area-inset-bottom); }
+  nav button { flex:1; background:none; border:0; padding:9px 0 7px; font-size:11px; color:var(--mut); display:flex; flex-direction:column; align-items:center; gap:2px; }
+  nav button span { font-size:21px; line-height:1; }
+  nav button.on { color:var(--fg); }
+
+  /* auth */
+  .auth { height:100%; display:flex; flex-direction:column; justify-content:center; gap:12px; padding:28px; }
+  .auth h1 { text-align:center; margin:0 0 10px; font-size:34px; }
+  .err { color:#ff6b81; font-size:14px; text-align:center; min-height:18px; }
+
+  /* feed */
+  .feed { height:100%; overflow-y:scroll; scroll-snap-type:y mandatory; scrollbar-width:none; overscroll-behavior:contain; }
+  .feed::-webkit-scrollbar { display:none; }
+  .card { height:100%; scroll-snap-align:start; scroll-snap-stop:always; position:relative; background:#000; overflow:hidden; }
+  .card video { width:100%; height:100%; object-fit:cover; background:#000; }
+  .card .shade { position:absolute; inset:auto 0 0 0; height:240px; background:linear-gradient(to top,rgba(0,0,0,.85),transparent); pointer-events:none; }
+  .card .info { position:absolute; right:14px; left:84px; bottom:16px; text-shadow:0 1px 6px #000; }
+  .card .info b { font-size:17px; cursor:pointer; }
+  .card .info p { margin:6px 0 0; font-size:14px; line-height:1.5; word-break:break-word; }
+  .card .info small { color:#ddd; display:block; margin-top:6px; }
+  .acts { position:absolute; left:10px; bottom:22px; display:flex; flex-direction:column; align-items:center; gap:18px; }
+  .acts button { background:none; border:0; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:12px; text-shadow:0 1px 6px #000; }
+  .acts button span { font-size:32px; line-height:1; filter:drop-shadow(0 1px 4px #000); }
+  .acts .liked span { color:var(--accent); }
+  .avatar { width:46px; height:46px; border-radius:50%; background:#444; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px; position:relative; flex:none; }
+  .avatar .plus { position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); width:20px; height:20px; border-radius:50%; background:var(--accent); font-size:14px; line-height:20px; text-align:center; }
+  .pausemark { position:absolute; inset:0; display:none; align-items:center; justify-content:center; font-size:72px; opacity:.7; pointer-events:none; }
+  .card.paused .pausemark { display:flex; }
+  .topbar { position:absolute; top:0; right:0; left:0; z-index:5; display:flex; justify-content:center; gap:22px; padding:12px; background:linear-gradient(to bottom,rgba(0,0,0,.55),transparent); }
+  .topbar button { background:none; border:0; font-size:17px; font-weight:700; color:#bbb; padding:4px 2px; border-bottom:2px solid transparent; }
+  .topbar button.on { color:#fff; border-color:#fff; }
+  .soundbtn { position:absolute; top:10px; left:10px; z-index:6; background:rgba(0,0,0,.45); border:0; border-radius:50%; width:38px; height:38px; font-size:18px; }
+  .empty { height:100%; }
+
+  /* pages */
+  .page { height:100%; overflow-y:auto; padding:16px; }
+  .page h2 { margin:4px 0 16px; }
+  .row { display:flex; gap:10px; align-items:center; }
+  .list-item { display:flex; align-items:center; gap:12px; padding:11px 4px; border-bottom:1px solid #1b1b1d; cursor:pointer; }
+  .list-item .avatar { width:42px; height:42px; font-size:18px; }
+  .badge { background:var(--accent); border-radius:5px; font-size:10px; font-weight:800; padding:2px 6px; }
+  .stats { display:flex; justify-content:space-around; margin:16px 0; }
+  .stats b { display:block; font-size:20px; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:2px; margin:0 -16px; }
+  .grid .cell { aspect-ratio:9/14; background:#1a1a1c; position:relative; cursor:pointer; overflow:hidden; }
+  .grid video { width:100%; height:100%; object-fit:cover; pointer-events:none; }
+  .grid .cell small { position:absolute; bottom:4px; right:6px; text-shadow:0 1px 4px #000; font-size:12px; }
+  .progress { height:6px; background:#2a2a2d; border-radius:4px; overflow:hidden; margin-top:10px; }
+  .progress i { display:block; height:100%; width:0; background:var(--accent); transition:width .15s; }
+
+  /* overlays / sheets */
+  .overlay { position:absolute; inset:0; z-index:20; background:#000; display:flex; flex-direction:column; }
+  .overlay > .close { position:absolute; top:10px; right:10px; z-index:30; background:rgba(0,0,0,.55); border:0; border-radius:50%; width:38px; height:38px; font-size:18px; }
+  .sheet-bg { position:absolute; inset:0; z-index:40; background:rgba(0,0,0,.55); display:flex; align-items:flex-end; }
+  .sheet { background:var(--card); width:100%; height:68%; border-radius:16px 16px 0 0; display:flex; flex-direction:column; }
+  .sheet header { text-align:center; padding:14px; font-weight:700; border-bottom:1px solid #2c2c2e; }
+  .sheet .body { flex:1; overflow-y:auto; padding:6px 14px; }
+  .sheet footer { display:flex; gap:8px; padding:10px; padding-bottom:calc(10px + env(safe-area-inset-bottom)); }
+  .cmt { display:flex; gap:10px; padding:10px 0; }
+  .cmt .avatar { width:34px; height:34px; font-size:15px; }
+  .cmt small { color:var(--mut); }
+  .cmt p { margin:2px 0 0; word-break:break-word; }
+  .cmt .del { margin-right:auto; background:none; border:0; color:var(--mut); }
+
+  /* live */
+  .stage { position:absolute; inset:0; background:#000; overflow:hidden; }
+  .stage video { width:100%; height:100%; object-fit:cover; }
+  .livebar { position:absolute; top:0; right:0; left:0; padding:12px 58px 12px 12px; display:flex; gap:10px; align-items:center; z-index:25; background:linear-gradient(to bottom,rgba(0,0,0,.6),transparent); }
+  .chat { position:absolute; right:0; left:0; bottom:0; z-index:25; padding:10px; padding-bottom:calc(10px + env(safe-area-inset-bottom)); }
+  .chat .msgs { height:170px; overflow-y:auto; display:flex; flex-direction:column; justify-content:flex-end; mask-image:linear-gradient(to bottom,transparent,#000 30%); -webkit-mask-image:linear-gradient(to bottom,transparent,#000 30%); }
+  .chat .msgs div { padding:2px 2px; text-shadow:0 1px 4px #000; font-size:14px; word-break:break-word; }
+  .chat .msgs b { color:#bbb; margin-left:6px; }
+  .chat form { display:flex; gap:8px; margin-top:8px; }
+  .chat input { background:rgba(0,0,0,.6); border-radius:22px; }
+  .ended { position:absolute; inset:0; z-index:24; background:rgba(0,0,0,.85); font-size:24px; }
+  .toast { position:fixed; bottom:84px; left:50%; transform:translateX(-50%); background:#333; padding:10px 18px; border-radius:22px; z-index:100; font-size:14px; max-width:90%; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+'use strict';
+
+/* ================= config & helpers ================= */
+// When this page is served by the backend (http://localhost:3000) the API is on the same origin.
+// If you open the file directly (file://) it talks to http://localhost:3000.
+const BASE = '';
+
+const state = {
+  token: localStorage.getItem('token'),
+  user: JSON.parse(localStorage.getItem('user') || 'null'),
+  muted: true,
+};
+
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k === 'style') e.style.cssText = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (v === true) e.setAttribute(k, '');
+    else e.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) {
+    if (c == null || c === false) continue;
+    e.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return e;
+}
+
+function toast(msg) {
+  const t = h('div', { class: 'toast' }, msg);
+  document.body.append(t);
+  setTimeout(() => t.remove(), 2800);
+}
+
+function fmt(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+}
+
+/* ================= local backend (IndexedDB, بدون سيرفر) ================= */
+const Local = (() => {
+  let idb = null, db = { users: [], videos: [], likes: [], follows: [], comments: [], next: 1 };
+  const urls = {}, mem = {};
+  const err = (m) => { throw new Error(m); };
+  const req2p = (r) => new Promise((ok, no) => { r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+  const put = (store, val, key) => idb ? req2p(idb.transaction(store, 'readwrite').objectStore(store).put(val, key)) : Promise.resolve();
+  const save = () => put('kv', JSON.parse(JSON.stringify(db)), 'db').catch(() => {});
+  async function init() {
+    try {
+      idb = await new Promise((ok, no) => {
+        const r = indexedDB.open('clip', 1);
+        r.onupgradeneeded = () => { r.result.createObjectStore('kv'); r.result.createObjectStore('blobs'); };
+        r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+      });
+      db = (await req2p(idb.transaction('kv').objectStore('kv').get('db'))) || db;
+      for (const v of db.videos) {
+        const b = await req2p(idb.transaction('blobs').objectStore('blobs').get(v.id));
+        if (b) urls[v.id] = URL.createObjectURL(b);
+      }
+    } catch { idb = null; }
+  }
+  async function hash(p) {
+    try {
+      const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('clip:' + p));
+      return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+    } catch { return 'x' + btoa(unescape(encodeURIComponent(p))); }
+  }
+  const me = () => (state.token ? db.users.find((u) => 'local-' + u.id === state.token) : null);
+  const need = () => { const m = me(); if (!m) { logout(); err('يجب تسجيل الدخول'); } return m; };
+  const uname = (id) => db.users.find((u) => u.id === id);
+  const shape = (v, m) => {
+    const u = uname(v.uid);
+    return { id: v.id, caption: v.caption, url: urls[v.id] || '', views: v.views, createdAt: v.at,
+      user: { id: u.id, username: u.username },
+      likes: db.likes.filter((l) => l.v === v.id).length, comments: db.comments.filter((c) => c.v === v.id).length,
+      liked: !!m && db.likes.some((l) => l.v === v.id && l.u === m.id),
+      following: !!m && db.follows.some((f) => f.a === m.id && f.b === u.id) };
+  };
+  const newest = (arr) => arr.slice().sort((a, b) => b.at - a.at);
+  const toggle = (arr, pred, row) => { const i = arr.findIndex(pred); if (i >= 0) { arr.splice(i, 1); return false; } arr.push(row); return true; };
+
+  async function call(method, path, body, form) {
+    const u = new URL(path, 'http://x'), p = u.pathname.split('/').filter(Boolean).slice(1), q = u.searchParams, m = me();
+    const key = method + ' ' + p[0] + (p[2] ? '/*/' + p[2] : p[1] ? '/*' : '');
+    const lim = Math.min(+q.get('limit') || 10, 30), off = +q.get('offset') || 0;
+    switch (key) {
+      case 'POST register': case 'POST login': {
+        const name = String(body.username || '').trim().toLowerCase(), pass = String(body.password || '');
+        if (p[0] === 'register') {
+          if (!/^[a-z0-9_.]{3,20}$/.test(name)) err('اسم المستخدم: 3-20 حرف انكليزي أو رقم أو _ .');
+          if (pass.length < 6) err('كلمة السر لازم 6 أحرف على الأقل');
+          if (uname2(name)) err('اسم المستخدم مأخوذ');
+          const nu = { id: db.next++, username: name, ph: await hash(pass), bio: '' };
+          db.users.push(nu); await save();
+          return { token: 'local-' + nu.id, user: { id: nu.id, username: name } };
+        }
+        const row = uname2(name);
+        if (!row || row.ph !== await hash(pass)) err('اسم المستخدم أو كلمة السر غلط');
+        return { token: 'local-' + row.id, user: { id: row.id, username: row.username } };
+      }
+      case 'GET feed': return newest(db.videos).slice(off, off + lim).map((v) => shape(v, m));
+      case 'GET feed/*': { const mm = need(); return newest(db.videos).filter((v) => db.follows.some((f) => f.a === mm.id && f.b === v.uid)).slice(off, off + lim).map((v) => shape(v, mm)); }
+      case 'POST videos': {
+        const mm = need(), f = form.get('video');
+        if (!f || !String(f.type).startsWith('video/')) err('الملف لازم يكون فيديو');
+        const v = { id: db.next++, uid: mm.id, caption: String(form.get('caption') || '').slice(0, 300), views: 0, at: Date.now() };
+        try { await put('blobs', f, v.id); } catch { err('ما كدرت أخزن الفيديو (المساحة ممتلئة؟)'); }
+        urls[v.id] = URL.createObjectURL(f); db.videos.push(v); await save();
+        return shape(v, mm);
+      }
+      case 'POST videos/*/view': { const v = db.videos.find((x) => x.id == p[1]); if (v) { v.views++; save(); } return { ok: true }; }
+      case 'DELETE videos/*': {
+        const mm = need(), v = db.videos.find((x) => x.id == p[1]);
+        if (!v) err('الفيديو مو موجود'); if (v.uid !== mm.id) err('مو فيديوك');
+        db.videos = db.videos.filter((x) => x !== v); db.likes = db.likes.filter((l) => l.v !== v.id); db.comments = db.comments.filter((c) => c.v !== v.id);
+        if (idb) idb.transaction('blobs', 'readwrite').objectStore('blobs').delete(v.id);
+        URL.revokeObjectURL(urls[v.id]); delete urls[v.id]; await save(); return { ok: true };
+      }
+      case 'POST videos/*/like': {
+        const mm = need(); if (!db.videos.some((x) => x.id == p[1])) err('الفيديو مو موجود');
+        const liked = toggle(db.likes, (l) => l.u === mm.id && l.v == p[1], { u: mm.id, v: +p[1] }); await save();
+        return { liked, likes: db.likes.filter((l) => l.v == p[1]).length };
+      }
+      case 'GET videos/*/comments': return newest(db.comments.filter((c) => c.v == p[1])).slice(0, 200).map((c) => ({ id: c.id, text: c.text, createdAt: c.at, user: { id: c.u, username: uname(c.u).username } }));
+      case 'POST videos/*/comments': {
+        const mm = need(), text = String(body.text || '').trim().slice(0, 500);
+        if (!text) err('التعليق فارغ'); if (!db.videos.some((x) => x.id == p[1])) err('الفيديو مو موجود');
+        const c = { id: db.next++, u: mm.id, v: +p[1], text, at: Date.now() }; db.comments.push(c); await save();
+        return { id: c.id, text, createdAt: c.at, user: { id: mm.id, username: mm.username } };
+      }
+      case 'DELETE comments/*': {
+        const mm = need(), c = db.comments.find((x) => x.id == p[1]);
+        if (!c) err('التعليق مو موجود'); if (c.u !== mm.id) err('مو تعليقك');
+        db.comments = db.comments.filter((x) => x !== c); await save(); return { ok: true };
+      }
+      case 'GET users/*': {
+        const t = uname2(decodeURIComponent(p[1]).toLowerCase()); if (!t) err('المستخدم مو موجود');
+        const vids = newest(db.videos.filter((v) => v.uid === t.id));
+        return { id: t.id, username: t.username, bio: t.bio || '',
+          followers: db.follows.filter((f) => f.b === t.id).length, following: db.follows.filter((f) => f.a === t.id).length,
+          likes: db.likes.filter((l) => vids.some((v) => v.id === l.v)).length,
+          isFollowing: !!m && db.follows.some((f) => f.a === m.id && f.b === t.id), isMe: !!m && m.id === t.id, videos: vids.map((v) => shape(v, m)) };
+      }
+      case 'PUT me': { const mm = need(); mm.bio = String(body.bio || '').slice(0, 150); await save(); return { ok: true, bio: mm.bio }; }
+      case 'POST users/*/follow': {
+        const mm = need(), t = +p[1]; if (t === mm.id) err('ما تقدر تتابع نفسك'); if (!uname(t)) err('المستخدم مو موجود');
+        const following = toggle(db.follows, (f) => f.a === mm.id && f.b === t, { a: mm.id, b: t }); await save(); return { following };
+      }
+      case 'GET search': {
+        const s = (q.get('q') || '').trim().toLowerCase(); if (!s) return { users: [], videos: [] };
+        return { users: db.users.filter((x) => x.username.includes(s)).slice(0, 20).map((x) => ({ id: x.id, username: x.username })),
+          videos: newest(db.videos.filter((v) => v.caption.toLowerCase().includes(s))).slice(0, 20).map((v) => shape(v, m)) };
+      }
+      case 'GET live': return [];
+      default: err('البث المباشر يحتاج سيرفر وسائط، وما يشتغل بالنسخة المحلية');
+    }
+  }
+  const uname2 = (n) => db.users.find((u) => u.username === n);
+  return { init, call };
+})();
+
+async function api(path, { method = 'GET', body, form } = {}) {
+  await ready;
+  return Local.call(method, path, body, form);
+}
+const ready = Local.init();
+
+function saveSession(d) {
+  state.token = d.token;
+  state.user = d.user;
+  localStorage.setItem('token', d.token);
+  localStorage.setItem('user', JSON.stringify(d.user));
+}
+
+function logout() {
+  state.token = null;
+  state.user = null;
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  render();
+}
+
+const initial = (name) => (name || '?')[0].toUpperCase();
+
+/* ================= app shell ================= */
+const root = document.getElementById('app');
+let tab = 'home';
+
+function render() {
+  root.replaceChildren();
+  if (!state.token) return root.append(authView());
+
+  const main = h('div', { id: 'main' });
+  const items = [
+    ['home', '🏠', 'الرئيسية'], ['search', '🔍', 'بحث'], ['upload', '➕', 'رفع'],
+    ['live', '📡', 'بث مباشر'], ['me', '👤', 'حسابي'],
+  ];
+  const nav = h('nav', {}, items.map(([id, ic, label]) =>
+    h('button', { class: id === tab ? 'on' : '', onclick: () => { tab = id; render(); } }, h('span', {}, ic), label)));
+  root.append(main, nav);
+
+  ({ home: homeView, search: searchView, upload: uploadView, live: liveView, me: () => profileView(state.user.username, true) })[tab](main);
+}
+
+function overlay(content, onClose) {
+  const ov = h('div', { class: 'overlay' },
+    h('button', { class: 'close', onclick: () => close() }, '✕'), content);
+  function close() { ov.remove(); onClose && onClose(); }
+  $main().append(ov);
+  ov.close = close;
+  return ov;
+}
+const $main = () => document.getElementById('main');
+
+/* ================= auth ================= */
+function authView() {
+  let register = false;
+  const user = h('input', { placeholder: 'اسم المستخدم (انكليزي)', autocomplete: 'username', dir: 'ltr' });
+  const pass = h('input', { type: 'password', placeholder: 'كلمة السر', autocomplete: 'current-password', dir: 'ltr' });
+  const err = h('div', { class: 'err' });
+  const go = h('button', { class: 'btn' }, 'تسجيل الدخول');
+  const sw = h('button', { class: 'btn ghost' }, 'ماعندي حساب، إنشاء حساب جديد');
+
+  function sync() {
+    go.textContent = register ? 'إنشاء حساب' : 'تسجيل الدخول';
+    sw.textContent = register ? 'عندي حساب، تسجيل دخول' : 'ماعندي حساب، إنشاء حساب جديد';
+  }
+  sw.onclick = () => { register = !register; err.textContent = ''; sync(); };
+  async function submit() {
+    go.disabled = true; err.textContent = '';
+    try {
+      const d = await api(register ? '/api/register' : '/api/login', { method: 'POST', body: { username: user.value.trim(), password: pass.value } });
+      saveSession(d);
+      tab = 'home';
+      render();
+    } catch (e) {
+      err.textContent = e.message;
+      go.disabled = false;
+    }
+  }
+  go.onclick = submit;
+  pass.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+
+  return h('div', { class: 'auth' }, h('h1', {}, '▶ كليب'), user, pass, err, go, sw);
+}
+
+/* ================= feed ================= */
+const playObserver = new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    const card = e.target, vid = card.querySelector('video');
+    if (e.isIntersecting) {
+      vid.muted = state.muted;
+      vid.play().then(() => card.classList.remove('paused')).catch(() => {});
+      if (!card._viewed) { card._viewed = true; api('/api/videos/' + card._vid + '/view', { method: 'POST' }).catch(() => {}); }
+    } else {
+      vid.pause();
+    }
+  }
+}, { threshold: 0.7 });
+
+function videoCard(v, { onDeleted } = {}) {
+  const vid = h('video', { src: BASE + v.url, loop: true, playsinline: true, preload: 'metadata' });
+  vid.muted = true;
+  const card = h('div', { class: 'card' });
+  card._vid = v.id;
+
+  const likeBtn = h('button', { class: v.liked ? 'liked' : '' }, h('span', {}, v.liked ? '❤' : '🤍'), h('em', { style: 'font-style:normal' }, fmt(v.likes)));
+  const cmtCount = h('em', { style: 'font-style:normal' }, fmt(v.comments));
+  const mine = state.user && v.user.id === state.user.id;
+
+  const plus = (!mine && !v.following) ? h('div', { class: 'plus', onclick: async (e) => {
+    e.stopPropagation();
+    try { const r = await api('/api/users/' + v.user.id + '/follow', { method: 'POST' }); v.following = r.following; if (r.following) plus.remove(); } catch (er) { toast(er.message); }
+  } }, '+') : null;
+
+  likeBtn.onclick = async () => {
+    v.liked = !v.liked; v.likes += v.liked ? 1 : -1;
+    likeBtn.className = v.liked ? 'liked' : '';
+    likeBtn.firstChild.textContent = v.liked ? '❤' : '🤍';
+    likeBtn.lastChild.textContent = fmt(v.likes);
+    try { const r = await api('/api/videos/' + v.id + '/like', { method: 'POST' }); v.likes = r.likes; likeBtn.lastChild.textContent = fmt(r.likes); }
+    catch (er) { toast(er.message); }
+  };
+
+  vid.addEventListener('click', () => {
+    if (vid.paused) { vid.play(); card.classList.remove('paused'); } else { vid.pause(); card.classList.add('paused'); }
+  });
+
+  const acts = h('div', { class: 'acts' },
+    h('div', { class: 'avatar', style: 'cursor:pointer', onclick: () => openProfile(v.user.username) }, initial(v.user.username), plus),
+    likeBtn,
+    h('button', { onclick: () => openComments(v, (n) => { cmtCount.textContent = fmt(n); }) }, h('span', {}, '💬'), cmtCount),
+    mine && onDeleted ? h('button', { onclick: async () => {
+      if (!confirm('حذف الفيديو؟')) return;
+      try { await api('/api/videos/' + v.id, { method: 'DELETE' }); onDeleted(v); } catch (er) { toast(er.message); }
+    } }, h('span', {}, '🗑'), 'حذف') : null,
+  );
+
+  card.append(vid,
+    h('div', { class: 'pausemark' }, '▶'),
+    h('div', { class: 'shade' }),
+    h('div', { class: 'info' },
+      h('b', { onclick: () => openProfile(v.user.username) }, '@' + v.user.username),
+      v.caption ? h('p', {}, v.caption) : null,
+      h('small', {}, '👁 ' + fmt(v.views))),
+    acts);
+  playObserver.observe(card);
+  return card;
+}
+
+/** Fills `container` with a vertical, snapping list of videos. */
+function mountFeed(container, loader, { emptyText, onDeleted } = {}) {
+  const feed = h('div', { class: 'feed' });
+  container.append(feed);
+  let offset = 0, done = false, loading = false, count = 0;
+
+  async function more() {
+    if (loading || done) return;
+    loading = true;
+    try {
+      const list = await loader(offset);
+      offset += list.length;
+      if (list.length < 10) done = true;
+      for (const v of list) { const card = videoCard(v, { onDeleted: (x) => { card.remove(); toast('انحذف الفيديو'); onDeleted && onDeleted(x); } }); feed.append(card); }
+      count += list.length;
+      if (!count) feed.append(h('div', { class: 'card center empty muted' }, emptyText || 'ماكو فيديوهات'));
+    } catch (e) {
+      if (!count) feed.append(h('div', { class: 'card center empty muted' }, e.message));
+      else toast(e.message);
+      done = true;
+    } finally { loading = false; }
+  }
+  feed.addEventListener('scroll', () => {
+    if (feed.scrollTop + feed.clientHeight * 3 > feed.scrollHeight) more();
+  });
+  more();
+  return feed;
+}
+
+function homeView(main) {
+  let mode = 'for';
+  const holder = h('div', { style: 'height:100%' });
+  const bFor = h('button', { class: 'on' }, 'لك');
+  const bFol = h('button', {}, 'المتابَعين');
+  const sound = h('button', { class: 'soundbtn' }, state.muted ? '🔇' : '🔊');
+
+  function load() {
+    holder.querySelectorAll('.card').forEach((c) => playObserver.unobserve(c));
+    holder.replaceChildren();
+    bFor.className = mode === 'for' ? 'on' : '';
+    bFol.className = mode === 'fol' ? 'on' : '';
+    mountFeed(holder, (o) => api((mode === 'for' ? '/api/feed' : '/api/feed/following') + '?limit=10&offset=' + o),
+      { emptyText: mode === 'for' ? 'ماكو فيديوهات بعد، كون أول واحد يرفع' : 'ماكو فيديوهات من اللي تتابعهم بعد' });
+  }
+  bFor.onclick = () => { mode = 'for'; load(); };
+  bFol.onclick = () => { mode = 'fol'; load(); };
+  sound.onclick = () => {
+    state.muted = !state.muted;
+    sound.textContent = state.muted ? '🔇' : '🔊';
+    document.querySelectorAll('.card video').forEach((v) => { v.muted = state.muted; });
+  };
+  main.append(holder, h('div', { class: 'topbar' }, bFor, bFol), sound);
+  load();
+}
+
+/* ================= comments ================= */
+async function openComments(v, onCount) {
+  const body = h('div', { class: 'body' }, h('div', { class: 'muted center', style: 'padding:30px' }, '...'));
+  const title = h('header', {}, v.comments + ' تعليق');
+  const input = h('input', { placeholder: 'اكتب تعليق...', maxlength: 500 });
+  const send = h('button', { class: 'btn' }, 'إرسال');
+  const bg = h('div', { class: 'sheet-bg', onclick: (e) => { if (e.target === bg) bg.remove(); } },
+    h('div', { class: 'sheet' }, title, body, h('footer', {}, input, send)));
+  $main().append(bg);
+
+  function row(c, list) {
+    const el = h('div', { class: 'cmt' },
+      h('div', { class: 'avatar' }, initial(c.user.username)),
+      h('div', {}, h('small', {}, '@' + c.user.username), h('p', {}, c.text)),
+      c.user.id === state.user.id ? h('button', { class: 'del', onclick: async () => {
+        try { await api('/api/comments/' + c.id, { method: 'DELETE' }); el.remove(); v.comments = Math.max(0, v.comments - 1); title.textContent = v.comments + ' تعليق'; onCount(v.comments); }
+        catch (e) { toast(e.message); }
+      } }, '🗑') : null);
+    return el;
+  }
+
+  try {
+    const list = await api('/api/videos/' + v.id + '/comments');
+    body.replaceChildren(...(list.length ? list.map((c) => row(c)) : [h('div', { class: 'muted center', style: 'padding:30px' }, 'ماكو تعليقات، اكتب أول تعليق')]));
+  } catch (e) { body.textContent = e.message; }
+
+  async function post() {
+    const text = input.value.trim();
+    if (!text) return;
+    send.disabled = true;
+    try {
+      const c = await api('/api/videos/' + v.id + '/comments', { method: 'POST', body: { text } });
+      if (body.querySelector('.cmt') === null) body.replaceChildren();
+      body.prepend(row(c));
+      input.value = '';
+      v.comments += 1; title.textContent = v.comments + ' تعليق'; onCount(v.comments);
+    } catch (e) { toast(e.message); }
+    send.disabled = false;
+  }
+  send.onclick = post;
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') post(); });
+}
+
+/* ================= search ================= */
+function searchView(main) {
+  const q = h('input', { placeholder: 'ابحث عن حسابات أو فيديوهات', type: 'search' });
+  const out = h('div', {}, h('p', { class: 'muted center' }, 'اكتب شي وابحث'));
+  async function run() {
+    const term = q.value.trim();
+    if (!term) return;
+    try {
+      const r = await api('/api/search?q=' + encodeURIComponent(term));
+      out.replaceChildren();
+      if (!r.users.length && !r.videos.length) return out.append(h('p', { class: 'muted center' }, 'ماكو نتائج'));
+      if (r.users.length) out.append(h('h3', {}, 'حسابات'), ...r.users.map((u) =>
+        h('div', { class: 'list-item', onclick: () => openProfile(u.username) }, h('div', { class: 'avatar' }, initial(u.username)), '@' + u.username)));
+      if (r.videos.length) out.append(h('h3', {}, 'فيديوهات'), ...r.videos.map((v, i) =>
+        h('div', { class: 'list-item', onclick: () => openViewer(r.videos, i) }, h('div', { class: 'avatar' }, '▶'),
+          h('div', {}, h('div', {}, v.caption || '(بدون وصف)'), h('small', { class: 'muted' }, '@' + v.user.username)))));
+    } catch (e) { toast(e.message); }
+  }
+  q.addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
+  main.append(h('div', { class: 'page' }, h('h2', {}, 'بحث'), q, h('div', { style: 'height:12px' }), out));
+}
+
+/* ================= upload ================= */
+function uploadView(main) {
+  let file = null;
+  const pick = h('input', { type: 'file', accept: 'video/mp4,video/quicktime,video/webm,video/x-m4v', style: 'display:none' });
+  const info = h('div', { class: 'muted center', style: 'height:140px;background:#1a1a1c;border-radius:12px;cursor:pointer' }, 'اضغط لاختيار فيديو');
+  const caption = h('textarea', { rows: 3, maxlength: 300, placeholder: 'الوصف...' });
+  const bar = h('i'); const prog = h('div', { class: 'progress', style: 'display:none' }, bar);
+  const go = h('button', { class: 'btn', disabled: true }, 'نشر');
+
+  info.onclick = () => pick.click();
+  pick.onchange = () => {
+    file = pick.files[0] || null;
+    info.textContent = file ? '✅ ' + file.name : 'اضغط لاختيار فيديو';
+    go.disabled = !file;
+  };
+  go.onclick = () => {
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('caption', caption.value.trim());
+    fd.append('video', file);
+    go.disabled = true; prog.style.display = 'block';
+    bar.style.width = '60%';
+    api('/api/videos', { method: 'POST', form: fd })
+      .then(() => { toast('انحفظ الفيديو ✅'); tab = 'home'; render(); })
+      .catch((e) => { toast(e.message || 'فشل الرفع'); go.disabled = false; prog.style.display = 'none'; });
+  };
+  main.append(h('div', { class: 'page', style: 'display:flex;flex-direction:column;gap:12px' },
+    h('h2', {}, 'رفع فيديو جديد'), info, pick, caption, prog, go));
+}
+
+/* ================= profile ================= */
+function openProfile(username) {
+  const box = h('div', { style: 'height:100%' });
+  overlay(box);
+  profileView(username, false, box);
+}
+
+async function profileView(username, isTab, mount) {
+  const main = mount || $main();
+  const page = h('div', { class: 'page', style: isTab ? '' : 'padding-top:60px' }, h('p', { class: 'muted center' }, '...'));
+  main.append(page);
+  try {
+    const p = await api('/api/users/' + username);
+    const stat = (n, l) => h('div', { class: 'center', style: 'flex-direction:column' }, h('b', {}, fmt(n)), h('span', { class: 'muted' }, l));
+    const act = p.isMe
+      ? h('div', { class: 'row', style: 'justify-content:center' },
+          h('button', { class: 'btn ghost', onclick: async () => {
+            const bio = prompt('نبذة عنك:', p.bio || '');
+            if (bio == null) return;
+            try { await api('/api/me', { method: 'PUT', body: { bio } }); page.remove(); profileView(username, isTab, mount); } catch (e) { toast(e.message); }
+          } }, 'تعديل النبذة'),
+          h('button', { class: 'btn gray', onclick: logout }, 'تسجيل خروج'))
+      : (() => {
+          const b = h('button', { class: 'btn' + (p.isFollowing ? ' gray' : '') }, p.isFollowing ? 'تتابعه' : 'متابعة');
+          b.onclick = async () => {
+            try { const r = await api('/api/users/' + p.id + '/follow', { method: 'POST' }); page.remove(); profileView(username, isTab, mount); } catch (e) { toast(e.message); }
+          };
+          return h('div', { class: 'center' }, b);
+        })();
+
+    page.replaceChildren(
+      h('div', { class: 'center', style: 'flex-direction:column;gap:8px' },
+        h('div', { class: 'avatar', style: 'width:84px;height:84px;font-size:34px' }, initial(p.username)),
+        h('h2', { style: 'margin:0' }, '@' + p.username)),
+      h('div', { class: 'stats' }, stat(p.following, 'يتابع'), stat(p.followers, 'متابعين'), stat(p.likes, 'إعجابات')),
+      p.bio ? h('p', { class: 'center' }, p.bio) : '',
+      act,
+      h('div', { style: 'height:16px' }),
+      p.videos.length
+        ? h('div', { class: 'grid' }, p.videos.map((v, i) => h('div', { class: 'cell', onclick: () => openViewer(p.videos, i, () => { page.remove(); profileView(username, isTab, mount); }) },
+            h('video', { src: BASE + v.url + '#t=0.1', preload: 'metadata', muted: true, playsinline: true }), h('small', {}, '❤ ' + fmt(v.likes)))))
+        : h('p', { class: 'muted center' }, 'ماكو فيديوهات'));
+  } catch (e) { page.replaceChildren(h('p', { class: 'muted center' }, e.message)); }
+}
+
+/** Full-screen viewer starting at video `start`. */
+function openViewer(videos, start, onClose) {
+  const list = [...videos];
+  const box = h('div', { style: 'height:100%' });
+  const ov = overlay(box, onClose);
+  const feed = h('div', { class: 'feed' });
+  box.append(feed);
+  list.forEach((v) => feed.append(videoCard(v, { onDeleted: (x) => {
+    const idx = list.findIndex((y) => y.id === x.id);
+    feed.children[idx].remove(); list.splice(idx, 1);
+    if (!list.length) ov.close();
+  } })));
+  feed.children[start].scrollIntoView();
+}
+
+/* ================= live ================= */
+async function liveView(main) {
+  const list = h('div', {}, h('p', { class: 'muted center' }, '...'));
+  const page = h('div', { class: 'page' },
+    h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', {}, 'البث المباشر'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn gray', onclick: load }, '↻'),
+        h('button', { class: 'btn', onclick: () => { const t = prompt('عنوان البث:', ''); if (t != null) startBroadcast(t.trim()); } }, '📡 ابدأ بث'))),
+    list);
+  main.append(page);
+
+  async function load() {
+    try {
+      const lives = await api('/api/live');
+      list.replaceChildren(...(lives.length ? lives.map((l) =>
+        h('div', { class: 'list-item', onclick: () => watchLive(l) },
+          h('div', { class: 'avatar' }, initial(l.user.username)),
+          h('div', { style: 'flex:1' }, h('div', {}, '@' + l.user.username), h('small', { class: 'muted' }, l.title || 'بث مباشر')),
+          h('span', { class: 'badge' }, 'LIVE'))) : [h('p', { class: 'muted center' }, 'البث المباشر يحتاج سيرفر وسائط، غير متوفر بالنسخة المحلية')]));
+    } catch (e) { list.replaceChildren(h('p', { class: 'muted center' }, e.message)); }
+  }
+  load();
+}
+
+function chatPanel(room) {
+  const msgs = h('div', { class: 'msgs' });
+  const input = h('input', { placeholder: 'اكتب رسالة...', maxlength: 200 });
+  const add = (u, t) => { msgs.append(h('div', {}, h('b', {}, u), t)); msgs.scrollTop = msgs.scrollHeight; };
+  room.on(LivekitClient.RoomEvent.DataReceived, (payload) => {
+    try { const m = JSON.parse(new TextDecoder().decode(payload)); add(String(m.u), String(m.t)); } catch {}
+  });
+  const form = h('form', { onsubmit: async (e) => {
+    e.preventDefault();
+    const t = input.value.trim();
+    if (!t) return;
+    input.value = '';
+    add(state.user.username, t);
+    try { await room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ u: state.user.username, t })), { reliable: true }); }
+    catch { toast('ما انرسلت الرسالة'); }
+  } }, input, h('button', { class: 'btn' }, '➤'));
+  return h('div', { class: 'chat' }, msgs, form);
+}
+
+function needLivekit() { toast('البث المباشر يحتاج سيرفر وسائط، غير متوفر بالنسخة المحلية'); return false; }
+
+async function startBroadcast(title) {
+  if (!needLivekit()) return;
+  const stage = h('div', { class: 'stage' }, h('div', { class: 'center muted', style: 'height:100%' }, 'جاري تشغيل الكاميرا...'));
+  const viewers = h('span', {}, '0');
+  let room = null, ended = false;
+  const ov = overlay(stage, () => finish());
+  ov.querySelector('.close').style.display = 'none';
+
+  async function finish() {
+    if (ended) return; ended = true;
+    try { room && await room.disconnect(); } catch {}
+    api('/api/live/stop', { method: 'POST' }).catch(() => {});
+  }
+  function end() { finish(); ov.remove(); }
+
+  try {
+    const s = await api('/api/live/start', { method: 'POST', body: { title } });
+    room = new LivekitClient.Room();
+    await room.connect(s.url, s.token);
+    const camPub = await room.localParticipant.setCameraEnabled(true);
+    await room.localParticipant.setMicrophoneEnabled(true);
+    stage.replaceChildren();
+    if (camPub && camPub.track) { const el = camPub.track.attach(); el.muted = true; stage.append(el); }
+    const upd = () => { viewers.textContent = room.remoteParticipants.size; };
+    room.on(LivekitClient.RoomEvent.ParticipantConnected, upd);
+    room.on(LivekitClient.RoomEvent.ParticipantDisconnected, upd);
+
+    let cam = true, mic = true;
+    const camB = h('button', { class: 'btn gray', onclick: async () => { cam = !cam; await room.localParticipant.setCameraEnabled(cam); camB.textContent = cam ? '📷' : '🚫'; } }, '📷');
+    const micB = h('button', { class: 'btn gray', onclick: async () => { mic = !mic; await room.localParticipant.setMicrophoneEnabled(mic); micB.textContent = mic ? '🎤' : '🔇'; } }, '🎤');
+    stage.append(
+      h('div', { class: 'livebar' }, h('span', { class: 'badge' }, 'LIVE'), '👁', viewers, h('span', { style: 'flex:1' }),
+        camB, micB, h('button', { class: 'btn', style: 'background:#d00', onclick: end }, 'إنهاء')),
+      chatPanel(room));
+  } catch (e) {
+    stage.replaceChildren(h('div', { class: 'center', style: 'height:100%;flex-direction:column;gap:14px;padding:24px' },
+      h('p', {}, e.message && e.message.includes('Permission') ? 'لازم تسمح بالكاميرا والمايك' : 'ما كدرت أبدأ البث. تأكد إن سيرفر LiveKit شغال وإنك تسمح بالكاميرا والمايك.'),
+      h('small', { class: 'muted' }, String(e.message || e)),
+      h('button', { class: 'btn', onclick: () => { finish(); ov.remove(); } }, 'رجوع')));
+  }
+}
+
+async function watchLive(live) {
+  if (!needLivekit()) return;
+  const stage = h('div', { class: 'stage' }, h('div', { class: 'center muted', style: 'height:100%' }, 'بانتظار البث...'));
+  let room = null;
+  const ov = overlay(stage, () => { try { room && room.disconnect(); } catch {} });
+  try {
+    const s = await api('/api/live/' + live.id + '/join', { method: 'POST' });
+    room = new LivekitClient.Room();
+    room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+      const el = track.attach();
+      if (track.kind === 'video') { stage.querySelector('.muted') && stage.replaceChildren(); stage.prepend(el); }
+      else stage.append(el);
+    });
+    const over = () => stage.append(h('div', { class: 'ended center' }, 'انتهى البث'));
+    room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (p) => { if (p.identity === 'u' + live.user.id) over(); });
+    room.on(LivekitClient.RoomEvent.Disconnected, over);
+    await room.connect(s.url, s.token);
+    stage.append(
+      h('div', { class: 'livebar' }, h('span', { class: 'badge' }, 'LIVE'), h('span', {}, '@' + live.user.username + '  ' + (live.title || ''))),
+      chatPanel(room));
+  } catch (e) {
+    stage.replaceChildren(h('div', { class: 'center', style: 'height:100%;padding:24px;text-align:center' }, e.message || 'ما كدرت أدخل البث'));
+  }
+}
+
+render();
+</script>
+</body>
+</html>
